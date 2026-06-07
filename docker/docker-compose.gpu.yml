@@ -1,0 +1,39 @@
+# ============================================================
+#  DocFlow — Docker Compose GPU Override
+#  Usage: docker-compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+# ============================================================
+version: "3.9"
+
+services:
+  api:
+    build:
+      dockerfile: docker/Dockerfile.gpu
+    image: docflow-api-gpu:latest
+    environment:
+      OCR_USE_GPU: "true"
+      WHISPER_DEVICE: cuda
+      USE_GPU: "true"
+      CUDA_VISIBLE_DEVICES: "0"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  worker:
+    build:
+      dockerfile: docker/Dockerfile.gpu
+    image: docflow-worker-gpu:latest
+    environment:
+      OCR_USE_GPU: "true"
+      WHISPER_DEVICE: cuda
+      USE_GPU: "true"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

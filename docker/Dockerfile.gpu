@@ -1,0 +1,38 @@
+# ============================================================
+#  DocFlow — Dockerfile (GPU / CUDA 12.1)
+# ============================================================
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+LABEL description="DocFlow GPU Build — CUDA 12.1"
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV CUDA_VISIBLE_DEVICES=0
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.11 python3.11-dev python3-pip \
+    tesseract-ocr tesseract-ocr-eng \
+    ffmpeg libmagic1 libgl1-mesa-glx libglib2.0-0 \
+    libsm6 libxext6 libxrender-dev poppler-utils curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
+    ln -sf /usr/bin/python3.11 /usr/bin/python3
+
+WORKDIR /app
+COPY pyproject.toml .
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu121 && \
+    pip install --no-cache-dir -e ".[gpu,ui]"
+
+COPY . .
+
+RUN mkdir -p /app/data/{uploads,outputs,temp,models,chroma,faiss}
+
+EXPOSE 8000 8501
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
